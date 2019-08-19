@@ -21,51 +21,47 @@ sudo make install
 
 ### 2. 配置参数
 
-File:`raspi3.cfg`
+当使用`bcm2835gpio`接口时，使用这个配置文件。
+
+File:`raspi3.cfg`（完整配置文件见同目录同名文件）
+
 ```shell
-#
-# Config for using Raspberry Pi's expansion header
-#
-# This is best used with a fast enough buffer but also
-# is suitable for direct connection if the target voltage
-# matches RPi's 3.3V and the cable is short enough.
-#
-# Do not forget the GND connection, pin 6 of the expansion header.
-#
 
 interface bcm2835gpio
 
 bcm2835gpio_peripheral_base 0x3F000000
 
-# Transition delay calculation: SPEED_COEFF/khz - SPEED_OFFSET
-# These depend on system clock, calibrated for stock 700MHz
-# bcm2835gpio_speed SPEED_COEFF SPEED_OFFSET
+# RPI2 900MHz
 bcm2835gpio_speed_coeffs 146203 36
+# RPI3B 1200MHz
+#bcm2835gpio_speed_coeffs 194938 48
+# RPI3B+ 1400MHz
+#bcm2835gpio_speed_coeffs 227428 56
 
-# Each of the JTAG lines need a gpio number set: tck tms tdi tdo
-# Header pin numbers: 23 22 19 21
-#bcm2835gpio_jtag_nums 11 25 10 9
-
-# Each of the SWD lines need a gpio number set: swclk swdio
-# Header pin numbers: 23 22
 bcm2835gpio_swd_nums 25 24
 
-# If you define trst or srst, use appropriate reset_config
-# Header pin numbers: TRST - 26, SRST - 18
+```
 
-# bcm2835gpio_trst_num 7
-# reset_config trst_only
 
-# bcm2835gpio_srst_num 24
-# reset_config srst_only srst_push_pull
 
-# or if you have both connected,
-# reset_config trst_and_srst srst_push_pull
+当使用`sysfsgpio`接口时，使用这个配置文件。
+
+File:`raspi-sysfsgpio.cfg`
+
+```shell
+
+interface sysfsgpio
+
+sysfsgpio_swd_nums 25 24
+
 ```
 
 ### 3. 编写烧录脚本
 
-File:`f103_prog.cfg`
+#### 使用`bcm2835gpio`接口烧录`stm32f1`芯片示例：
+
+创建烧录脚本:`f103_prog.cfg`
+
 ```shell
 source ./raspi3.cfg
 transport select swd
@@ -74,9 +70,74 @@ source [find target/stm32f1x.cfg]
 program ./LED.hex verify reset exit
 ```
 
+然后执行`sudo openocd -f f103_prog.cfg`即可
+
+#### 使用`bcm2835gpio`接口烧录`nrf52`芯片示例：
+
+创建烧录脚本:`nrf52_prog.cfg`
+
+```shell
+source ./raspi3.cfg
+transport select swd
+source [find target/nrf52.cfg]
+
+init
+reset halt
+nrf5 mass_erase
+reset halt
+program ./nrf52_firmware.hex verify
+reset run
+exit
+```
+
+然后执行`sudo openocd -f f103_prog.cfg`即可
+
+#### 使用`sysfsgpio`接口烧录`nrf52`芯片示例：
+
+创建烧录脚本:`nrf52_prog_fs.cfg`
+
+```shell
+source ./raspi-sysfsgpio.cfg
+transport select swd
+source [find target/nrf52.cfg]
+
+init
+reset halt
+nrf5 mass_erase
+reset halt
+program ./nrf52_firmware.hex verify
+reset run
+exit
+```
+
+然后执行`sudo openocd -f f103_prog.cfg`即可
 
 ### 4. 连线烧录
 
 ![](port.jpg)
 
-Program Stm32F103:`sudo openocd -f f103_prog.cfg`
+
+
+![](pinout.png)
+
+配置文件中没有指定`nRST`引脚，所以不用连接。只需要`VCC`,`GND`,`SWDIO`,`SWDCLK`四根连线即可。
+
+### 5. 已知问题
+
+使用`bcm2835gpio`接口时，在`RPI2B`上可以工作，在`RPI3`上烧录`nrf52`时会报错。并且尝试更改时钟相关参数`bcm2835gpio_speed_coeffs`未能修复。
+
+但是使用`bcm2835gpio`接口可以在`RPI3`上烧录`stm32f1`芯片。
+
+使用`sysfsgpio`接口在上述`RPI`上都能正常烧录`nrf52`，但是速度会比较慢，因为`bcm2835gpio`接口更加接近内核，效率更高。
+
+
+
+仍然怀疑`RPI3`上使用`bcm2835gpio`接口烧录`nrf52`报错的问题可能与`io`时钟设置相关。
+
+
+
+
+
+
+
+

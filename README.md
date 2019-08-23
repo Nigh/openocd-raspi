@@ -90,7 +90,7 @@ reset run
 exit
 ```
 
-然后执行`sudo openocd -f f103_prog.cfg`即可
+然后执行`sudo openocd -f nrf52_prog.cfg`即可
 
 #### 使用`sysfsgpio`接口烧录`nrf52`芯片示例：
 
@@ -110,7 +110,7 @@ reset run
 exit
 ```
 
-然后执行`sudo openocd -f f103_prog.cfg`即可
+然后执行`sudo openocd -f nrf52_prog_fs.cfg`即可
 
 ### 4. 连线烧录
 
